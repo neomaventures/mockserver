@@ -18,8 +18,8 @@ importers:
         specifier: ^9.6.0
         version: 9.9.0
       '@neomaventures/wait-for':
-        specifier: link:../wait-for
-        version: link:../wait-for
+        specifier: ^0.0.1
+        version: 0.0.1
       '@swc/core':
         specifier: ^1.12.1
         version: 1.16.13
@@ -480,6 +480,10 @@ packages:
     peerDependencies:
       '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.4
       '@emnapi/runtime': ^1.7.1 || ^2.0.0-alpha.4
+
+  '@neomaventures/wait-for@0.0.1':
+    resolution: {integrity: sha512-tbOp15QjcqZfrSLS8vAFiocvr/gzHg5V2EK8HJW1nzxfw730ddZAEx+X5129oLqIwNnTD4wLwy8K0K6Rf7GAxw==}
+    engines: {node: '>=22'}
 
   '@noble/hashes@1.8.0':
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
@@ -2826,6 +2830,8 @@ snapshots:
       '@emnapi/runtime': 1.10.0
       '@tybys/wasm-util': 0.10.4
     optional: true
+
+  '@neomaventures/wait-for@0.0.1': {}
 
   '@noble/hashes@1.8.0': {}
 
