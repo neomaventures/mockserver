@@ -1,0 +1,10 @@
+# MockServer for the e2e suite. Started by `pretest:e2e`, not by this package —
+# the client owns the protocol, your test harness owns the container.
+#
+# The image ships no HEALTHCHECK, so `--wait` only reports "running". The e2e
+# globalSetup polls for readiness with @neomaventures/wait-for.
+services:
+  mockserver:
+    image: mockserver/mockserver:5.15.0
+    ports:
+      - "2100:1080"

@@ -1,0 +1,124 @@
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/consistent-type-imports --
+ * These rules are deliberately disabled: this spec exercises the fixture's
+ * module-import-time behavior, which requires `require()` inside
+ * `jest.isolateModules` callbacks and inline `import()` type queries to
+ * preserve type safety across the isolated re-evaluations.
+ */
+import { faker } from "@faker-js/faker"
+
+describe("@neomaventures/mockserver/fixture", () => {
+  const originalUrl = process.env.MOCKSERVER_URL
+  let originalBeforeEach: any
+
+  beforeEach(() => {
+    originalBeforeEach = (globalThis as any).beforeEach
+  })
+
+  afterEach(() => {
+    if (originalUrl === undefined) {
+      delete process.env.MOCKSERVER_URL
+    } else {
+      process.env.MOCKSERVER_URL = originalUrl
+    }
+    ;(globalThis as any).beforeEach = originalBeforeEach
+    jest.resetModules()
+    jest.unmock("./client")
+  })
+
+  describe("Given MOCKSERVER_URL is set", () => {
+    it("should export a MockServerClient whose baseUrl matches the env var", () => {
+      const url = faker.internet.url()
+      process.env.MOCKSERVER_URL = url
+      // Suppress the auto-registration noise during this test.
+      ;(globalThis as any).beforeEach = jest.fn()
+
+      let mod: typeof import("./fixture")
+      jest.isolateModules(() => {
+        mod = require("./fixture")
+      })
+
+      expect(mod!.mockserver.baseUrl).toBe(url)
+    })
+  })
+
+  describe("Given MOCKSERVER_URL is unset", () => {
+    it("should throw at import time with a message naming the env var", () => {
+      delete process.env.MOCKSERVER_URL
+
+      expect(() => {
+        jest.isolateModules(() => {
+          require("./fixture")
+        })
+      }).toThrow(/MOCKSERVER_URL/)
+    })
+
+    it("should point at an .env file in the error message", () => {
+      delete process.env.MOCKSERVER_URL
+
+      expect(() => {
+        jest.isolateModules(() => {
+          require("./fixture")
+        })
+      }).toThrow(/\.env/)
+    })
+  })
+
+  describe("Given MOCKSERVER_URL is an empty string", () => {
+    it("should throw at import time", () => {
+      process.env.MOCKSERVER_URL = ""
+
+      expect(() => {
+        jest.isolateModules(() => {
+          require("./fixture")
+        })
+      }).toThrow(/MOCKSERVER_URL/)
+    })
+  })
+
+  describe("Given a global beforeEach exists (Jest, Vitest)", () => {
+    // Real behavioural proof — that the registered hook actually resets
+    // the running container between tests — lives in
+    // `e2e/fixture.e2e-spec.ts`, which sets an expectation in the first
+    // test and asserts it's gone in the second. Here we only verify the
+    // module wires a reset callback into the global beforeEach, which is
+    // what the e2e spec relies on.
+    it("should register a reset callback with the global beforeEach", async () => {
+      process.env.MOCKSERVER_URL = faker.internet.url()
+      const beforeEachSpy = jest.fn()
+      ;(globalThis as any).beforeEach = beforeEachSpy
+      const reset = jest.fn().mockResolvedValue(undefined)
+
+      jest.isolateModules(() => {
+        jest.doMock("./client", () => ({
+          MockServerClient: jest.fn().mockImplementation((baseUrl: string) => ({
+            baseUrl,
+            reset,
+          })),
+        }))
+        require("./fixture")
+      })
+
+      const callback = beforeEachSpy.mock.calls[0]?.[0]
+      await callback?.()
+
+      // Single observable outcome: after the registered callback runs,
+      // the client's reset() has been invoked. Covers both "hook was
+      // registered" (falsy callback would leave reset uncalled) and
+      // "hook resets the client".
+      expect(reset).toHaveBeenCalled()
+    })
+  })
+
+  describe("Given no global beforeEach exists", () => {
+    it("should not throw at import time", () => {
+      process.env.MOCKSERVER_URL = faker.internet.url()
+      ;(globalThis as any).beforeEach = undefined
+
+      expect(() => {
+        jest.isolateModules(() => {
+          require("./fixture")
+        })
+      }).not.toThrow()
+    })
+  })
+})

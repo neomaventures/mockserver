@@ -1,0 +1,138 @@
+# @neomaventures/mockserver
+
+A typed client for MockServer's REST API. Stub and verify HTTP expectations from your tests; container lifecycle stays with your harness.
+
+[![npm version](https://img.shields.io/npm/v/%40neomaventures%2Fmockserver)](https://www.npmjs.com/package/@neomaventures/mockserver)
+[![CI](https://github.com/neomaventures/mockserver/actions/workflows/ci.yml/badge.svg)](https://github.com/neomaventures/mockserver/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## Requirements
+
+- Node ≥ 22
+- A running MockServer. This package does **not** start one — see [Running MockServer](#running-mockserver).
+
+## Installation
+
+```bash
+npm install --save-dev @neomaventures/mockserver
+```
+
+## Quick start
+
+Point `MockServerClient` at a running MockServer and drive it.
+
+```typescript
+import { MockServerClient } from "@neomaventures/mockserver"
+
+const client = new MockServerClient(process.env.MOCKSERVER_URL)
+
+await client.reset()
+await client.createExpectation({
+  httpRequest: { path: "/api/users", method: "GET" },
+  httpResponse: { statusCode: 200, body: "[]" },
+  times: { unlimited: true },
+})
+
+// ...exercise the code under test, which calls the mocked endpoint...
+
+const matched = await client.verifyExpectationMatched({
+  path: "/api/users",
+  method: "GET",
+})
+```
+
+## Auto-reset fixture
+
+For test suites that want a single shared client and an automatic `reset()` between tests, import the `/fixture` subpath:
+
+```typescript
+import { mockserver } from "@neomaventures/mockserver/fixture"
+
+it("returns the mocked body", async () => {
+  await mockserver.createExpectation({
+    httpRequest: { path: "/api/users", method: "GET" },
+    httpResponse: { statusCode: 200, body: "[]" },
+    times: { unlimited: true },
+  })
+
+  // ...exercise the code under test...
+})
+```
+
+Importing the subpath:
+
+- Constructs a singleton `MockServerClient` from `process.env.MOCKSERVER_URL`. The variable **must** be set before the module is imported (typically via an `.env.e2e` consumed by `node --env-file` or via a Jest `globalSetup` that runs first). If it is unset or empty, importing throws.
+- Registers `beforeEach(() => mockserver.reset())` if the host runner exposes `beforeEach` globally (Jest, Vitest). Playwright Test does not expose a global `beforeEach` — call `await mockserver.reset()` from your own `test.beforeEach` instead.
+
+Suites that test `MockServerClient` itself, or that need multiple independent clients (e.g. per-suite isolated containers), should keep constructing the class directly.
+
+## Running MockServer
+
+This package is the client only. Starting and stopping the server belongs to
+your test harness, so one container can serve a whole suite — or a whole
+monorepo — rather than each package starting its own.
+
+```yaml
+# docker-compose.yml
+services:
+  mockserver:
+    image: mockserver/mockserver:5.15.0
+    ports:
+      - "2100:1080"
+```
+
+```json
+{
+  "scripts": {
+    "pretest:e2e": "docker compose up -d --wait",
+    "test:e2e": "node --env-file=.env.e2e jest --config ./e2e/jest-e2e.json",
+    "posttest:e2e": "docker compose down"
+  }
+}
+```
+
+```bash
+# .env.e2e
+MOCKSERVER_URL=http://localhost:2100/mockserver
+```
+
+### Waiting for readiness
+
+The MockServer image ships no `HEALTHCHECK`, so `docker compose up --wait`
+reports success as soon as the container is _running_ — which is not the same
+as accepting requests. Poll for readiness in a Jest `globalSetup`:
+
+```typescript
+import { waitForHttp } from "@neomaventures/wait-for"
+
+export default async function setup(): Promise<void> {
+  await waitForHttp(`${process.env.MOCKSERVER_URL}/status`, { method: "PUT" })
+}
+```
+
+`@neomaventures/wait-for` polls from the host, so it needs no probe inside the
+container. Any equivalent will do.
+
+## Configuration
+
+One variable:
+
+| Variable         | Purpose                                                                                                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `MOCKSERVER_URL` | Control-API URL, e.g. `http://localhost:2100/mockserver`. Required by `@neomaventures/mockserver/fixture` at import time, and the natural thing to pass to `MockServerClient`. |
+
+There is no port or container-name configuration: the port is whatever your
+compose file binds, and nothing here names a container.
+
+**Running suites in parallel?** Give each one its own MockServer rather than
+sharing — expectations are global to the server, and `reset()` clears all of
+them, so two suites against one instance will clear each other's stubs.
+
+## API
+
+- **`MockServerClient`** — `reset()`, `createExpectation(expectation)`, `verifyExpectationMatched(request, count?)`.
+- **`@neomaventures/mockserver/fixture`** — singleton `mockserver` client wired from `MOCKSERVER_URL` with an auto-reset `beforeEach` hook.
+
+## License
+
+MIT
