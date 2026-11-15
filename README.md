@@ -77,6 +77,21 @@ body: { type: MockserverBodyTypes.Binary, base64Bytes: content.toString("base64"
 body: { type: MockserverBodyTypes.String, string: "needle", subString: true }
 ```
 
+## Dropping a connection
+
+`httpError: { dropConnection: true }` drops the connection without a response. To drop it part way through a response's body, so `fetch` resolves on the headers and then fails reading the body, use `connectionOptions`:
+
+```typescript
+await client.createExpectation({
+  httpRequest: { path: "/token", method: "POST" },
+  httpResponse: {
+    statusCode: 200,
+    body: '{"access_tok',
+    connectionOptions: { contentLengthHeaderOverride: 100, closeSocket: true },
+  },
+})
+```
+
 ## Auto-reset fixture
 
 For test suites that want a single shared client and an automatic `reset()` between tests, import the `/fixture` subpath:

@@ -297,6 +297,34 @@ describe("MockServerClient", () => {
     })
   })
 
+  describe("createExpectation() with connection options", () => {
+    describe("Given the connection closes part way through the body", () => {
+      let path: string
+
+      beforeEach(async () => {
+        path = `/${faker.word.noun()}`
+
+        await client.createExpectation({
+          httpRequest: { path, method: "GET" },
+          httpResponse: {
+            statusCode: 200,
+            headers: { "content-type": ["text/plain"] },
+            body: "part of the bo",
+            connectionOptions: {
+              contentLengthHeaderOverride: 100,
+              closeSocket: true,
+            },
+          },
+          times: { remainingTimes: 1 },
+        })
+      })
+
+      it("should fail reading the body", async () => {
+        await expect(request(baseUrl).get(path)).rejects.toThrow()
+      })
+    })
+  })
+
   describe("verifyExpectationMatched()", () => {
     it("should return true when a request was matched", async () => {
       const path = `/${faker.word.noun()}`
