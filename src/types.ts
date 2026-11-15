@@ -185,3 +185,76 @@ export type MockserverExpectation = {
   httpError?: MockserverHttpError
   times?: MockserverSpecificTimes | MockserverUnlimitedTimes
 }
+
+/**
+ * A request MockServer received, as {@link MockServerClient.retrieveRecordedRequests}
+ * reads it back.
+ *
+ * @typeParam Json - What a JSON body is read as; `unknown` unless the
+ *   caller says otherwise, which it can't check.
+ */
+export type MockserverRecordedRequest<Json = unknown> = {
+  method: string
+  path: string
+
+  /**
+   * The headers, by lower-cased name: HTTP's names are case-insensitive, so
+   * `headers["content-type"]` finds the header however it was sent.
+   */
+  headers: Record<string, string[]>
+
+  /**
+   * The headers, by name as the sender cased it.
+   */
+  rawHeaders: Record<string, string[]>
+
+  /**
+   * The query string's parameters; empty when there were none.
+   */
+  queryStringParameters: Record<string, string[]>
+
+  /**
+   * The body; absent when there was none.
+   */
+  body?: MockserverRecordedBody<Json>
+}
+
+/**
+ * A received request's body, by how MockServer read it. Each carries its
+ * `bytes` exactly as received.
+ *
+ * @typeParam Json - What a JSON body is read as.
+ */
+export type MockserverRecordedBody<Json = unknown> =
+  | MockserverRecordedJsonBody<Json>
+  | MockserverRecordedStringBody
+  | MockserverRecordedBinaryBody
+
+/**
+ * A received body MockServer read as JSON.
+ */
+export type MockserverRecordedJsonBody<Json = unknown> = {
+  type: "JSON"
+  json: Json
+  contentType?: string
+  bytes: Buffer
+}
+
+/**
+ * A received body MockServer read as text, including a form's.
+ */
+export type MockserverRecordedStringBody = {
+  type: "STRING"
+  string: string
+  contentType?: string
+  bytes: Buffer
+}
+
+/**
+ * A received body MockServer read as raw bytes.
+ */
+export type MockserverRecordedBinaryBody = {
+  type: "BINARY"
+  contentType?: string
+  bytes: Buffer
+}

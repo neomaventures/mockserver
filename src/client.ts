@@ -1,6 +1,14 @@
 import { MockserverVerificationError } from "./errors"
+import {
+  type MockserverRetrievedRequest,
+  recordedRequest,
+} from "./recorded-request"
 import { MockserverTimes } from "./times"
-import { type MockserverExpectation, type MockserverHttpRequest } from "./types"
+import {
+  type MockserverExpectation,
+  type MockserverHttpRequest,
+  type MockserverRecordedRequest,
+} from "./types"
 
 /**
  * HTTP client for interacting with a MockServer instance.
@@ -148,6 +156,51 @@ export class MockServerClient {
         `Error creating expectations on ${this.baseUrl}: ${response.status} ${await response.text()}`,
       )
     }
+  }
+
+  /**
+   * Reads back the requests MockServer received that match `httpRequest`,
+   * or all of them, in the order they arrived, e.g. to assert what the code
+   * under test sent with a diff, rather than through a strict matcher.
+   * `reset()` clears them.
+   *
+   * @typeParam Json - What a JSON body is read as; `unknown` unless the
+   *   caller says otherwise, which it can't check.
+   * @param httpRequest - Which requests to read back; omit for all of them.
+   *
+   * @returns The requests, in the order they arrived.
+   *
+   * @throws {Error} When the MockServer returns a non-2xx response
+   *
+   * @example
+   * ```typescript
+   * const [sent] = await client.retrieveRecordedRequests({
+   *   path: "/api/users",
+   *   method: "POST",
+   * })
+   * expect(sent.body).toMatchObject({ type: "JSON", json: { name: "Ada" } })
+   * ```
+   */
+  public async retrieveRecordedRequests<Json = unknown>(
+    httpRequest?: MockserverHttpRequest,
+  ): Promise<MockserverRecordedRequest<Json>[]> {
+    const response = await fetch(
+      `${this.baseUrl}/retrieve?type=REQUESTS&format=JSON`,
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        ...(httpRequest ? { body: JSON.stringify(httpRequest) } : {}),
+      },
+    )
+
+    if (!response.ok) {
+      throw new Error(
+        `Error retrieving recorded requests from ${this.baseUrl}: ${response.status} ${await response.text()}`,
+      )
+    }
+
+    const retrieved = (await response.json()) as MockserverRetrievedRequest[]
+    return retrieved.map((request) => recordedRequest<Json>(request))
   }
 
   /**
