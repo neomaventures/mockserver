@@ -117,6 +117,48 @@ export type MockserverHttpResponse = {
     timeUnit: "MILLISECONDS"
     value: number
   }
+  connectionOptions?: MockserverConnectionOptions
+}
+
+/**
+ * How MockServer handles the connection a response is sent on, e.g. to
+ * drop it part way through the body: `{ contentLengthHeaderOverride: 100,
+ * closeSocket: true }` with a shorter body makes `fetch` resolve on the
+ * headers, then fail reading the body.
+ */
+export type MockserverConnectionOptions = {
+  /**
+   * Closes the socket once the response is sent.
+   */
+  closeSocket?: boolean
+
+  /**
+   * How long after the response is sent to close the socket.
+   */
+  closeSocketDelay?: {
+    timeUnit: "MILLISECONDS"
+    value: number
+  }
+
+  /**
+   * Sends this as `Content-Length`, whatever the body's length.
+   */
+  contentLengthHeaderOverride?: number
+
+  /**
+   * Sends no `Content-Length` header.
+   */
+  suppressContentLengthHeader?: boolean
+
+  /**
+   * Overrides whether the connection is kept alive.
+   */
+  keepAliveOverride?: boolean
+
+  /**
+   * Sends no `Connection` header.
+   */
+  suppressConnectionHeader?: boolean
 }
 
 /**

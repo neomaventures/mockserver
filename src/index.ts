@@ -7,6 +7,7 @@ export { MockserverVerificationError } from "./errors"
 export { MockserverBodyTypes, MockserverMatchTypes } from "./types"
 export type {
   MockserverBinaryBody,
+  MockserverConnectionOptions,
   MockserverExpectation,
   MockserverFormBody,
   MockserverHttpError,
