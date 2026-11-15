@@ -7,6 +7,7 @@ import {
   type MockserverExpectation,
   MockserverTimes,
   times,
+  MockserverVerificationError,
 } from "@neomaventures/mockserver"
 
 describe("MockServerClient", () => {
@@ -246,6 +247,52 @@ describe("MockServerClient", () => {
           .set("Content-Type", "text/plain")
           .send(faker.string.numeric(20))
           .expect(404)
+      })
+    })
+  })
+
+  describe("verify()", () => {
+    let path: string
+
+    beforeEach(async () => {
+      path = `/${faker.word.noun()}`
+
+      await client.createExpectation({
+        httpRequest: { path, method: "GET" },
+        httpResponse: { statusCode: 200, body: "ok" },
+        times: { unlimited: true },
+      })
+    })
+
+    describe("Given the request was received once", () => {
+      beforeEach(async () => {
+        await request(baseUrl).get(path).expect(200)
+      })
+
+      it("should resolve", async () => {
+        await expect(
+          client.verify({ path, method: "GET" }),
+        ).resolves.toBeUndefined()
+      })
+
+      it("should resolve for at least once", async () => {
+        await expect(
+          client.verify({ path, method: "GET" }, { atLeast: 1 }),
+        ).resolves.toBeUndefined()
+      })
+
+      it("should reject for twice, explaining what it received", async () => {
+        await expect(client.verify({ path, method: "GET" }, 2)).rejects.toThrow(
+          path,
+        )
+      })
+    })
+
+    describe("Given the request wasn't received", () => {
+      it("should reject with a MockserverVerificationError", async () => {
+        await expect(
+          client.verify({ path, method: "GET" }),
+        ).rejects.toBeInstanceOf(MockserverVerificationError)
       })
     })
   })

@@ -34,11 +34,10 @@ await client.createExpectation({
 
 // ...exercise the code under test, which calls the mocked endpoint...
 
-const matched = await client.verifyExpectationMatched({
-  path: "/api/users",
-  method: "GET",
-})
+await client.verify({ path: "/api/users", method: "GET" })
 ```
+
+`verify` resolves when MockServer received the request exactly once (or `verify(request, 3)`, or `verify(request, { atLeast: 1 })`), and otherwise rejects with a `MockserverVerificationError` whose message is MockServer's explanation: what it expected, and the requests it received. `verifyExpectationMatched` returns the same answer as a boolean.
 
 ## How many times an expectation matches
 
@@ -166,8 +165,9 @@ them, so two suites against one instance will clear each other's stubs.
 
 ## API
 
-- **`MockServerClient`** — `reset()`, `createExpectation(expectation)`, `verifyExpectationMatched(request, count?)`.
+- **`MockServerClient`** — `reset()`, `createExpectation(expectation)`, `verify(request, times?)`, `verifyExpectationMatched(request, count?)`.
 - **`MockserverTimes`** (`Once`, `Infinite`) and **`times(count)`** — an expectation's `times`; once by default.
+- **`MockserverVerificationError`** — what `verify` rejects with when a request wasn't received as expected.
 - **`@neomaventures/mockserver/fixture`** — singleton `mockserver` client wired from `MOCKSERVER_URL` with an auto-reset `beforeEach` hook.
 
 ## License
