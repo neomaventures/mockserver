@@ -1,6 +1,6 @@
 {
   "name": "@neomaventures/mockserver",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A typed client for MockServer's REST API. Stub and verify HTTP expectations from your tests; container lifecycle stays with your harness.",
   "type": "commonjs",
   "author": "Daniel Bruce",
