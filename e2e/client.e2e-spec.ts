@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker"
 import request from "supertest"
 
 import {
+  MockserverBodyTypes,
   MockServerClient,
   type MockserverExpectation,
 } from "@neomaventures/mockserver"
@@ -75,6 +76,119 @@ describe("MockServerClient", () => {
 
       await request(baseUrl).get(path).expect(200)
       await request(baseUrl).get(path).expect(404)
+    })
+  })
+
+  describe("createExpectation() with a body matcher", () => {
+    let path: string
+
+    beforeEach(() => {
+      path = `/${faker.word.noun()}`
+    })
+
+    describe("Given a binary body", () => {
+      const bytes = Buffer.from(
+        faker.helpers.multiple(() => faker.number.int(255), { count: 64 }),
+      )
+
+      beforeEach(async () => {
+        await client.createExpectation({
+          httpRequest: {
+            path,
+            method: "PUT",
+            body: {
+              type: MockserverBodyTypes.Binary,
+              base64Bytes: bytes.toString("base64"),
+            },
+          },
+          httpResponse: { statusCode: 200, body: "matched" },
+          times: { unlimited: true },
+        })
+      })
+
+      it("should match a request with the same bytes", async () => {
+        await request(baseUrl)
+          .put(path)
+          .set("Content-Type", "application/octet-stream")
+          .send(bytes)
+          .expect(200, "matched")
+      })
+
+      it("should not match a request with other bytes", async () => {
+        await request(baseUrl)
+          .put(path)
+          .set("Content-Type", "application/octet-stream")
+          .send(Buffer.concat([bytes, Buffer.from([0])]))
+          .expect(404)
+      })
+    })
+
+    describe("Given a string body", () => {
+      const text = faker.lorem.sentence()
+
+      beforeEach(async () => {
+        await client.createExpectation({
+          httpRequest: {
+            path,
+            method: "POST",
+            body: { type: MockserverBodyTypes.String, string: text },
+          },
+          httpResponse: { statusCode: 200, body: "matched" },
+          times: { unlimited: true },
+        })
+      })
+
+      it("should match a request with the same text", async () => {
+        await request(baseUrl)
+          .post(path)
+          .set("Content-Type", "text/plain")
+          .send(text)
+          .expect(200, "matched")
+      })
+
+      it("should not match a request containing more", async () => {
+        await request(baseUrl)
+          .post(path)
+          .set("Content-Type", "text/plain")
+          .send(`${text} and more`)
+          .expect(404)
+      })
+    })
+
+    describe("Given a string body matched as a substring", () => {
+      const text = faker.lorem.word({ length: { min: 8, max: 12 } })
+
+      beforeEach(async () => {
+        await client.createExpectation({
+          httpRequest: {
+            path,
+            method: "POST",
+            body: {
+              type: MockserverBodyTypes.String,
+              string: text,
+              subString: true,
+            },
+          },
+          httpResponse: { statusCode: 200, body: "matched" },
+          times: { unlimited: true },
+        })
+      })
+
+      it("should match a request containing the text", async () => {
+        await request(baseUrl)
+          .post(path)
+          .set("Content-Type", "text/plain")
+          .send(`before ${text} after`)
+          .expect(200, "matched")
+      })
+
+      it("should not match a request without it", async () => {
+        await request(baseUrl)
+          .post(path)
+          .set("Content-Type", "text/plain")
+          .send(faker.string.numeric(20))
+          .expect(404)
+      })
     })
   })
 

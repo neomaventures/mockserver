@@ -7,12 +7,78 @@ export enum MockserverMatchTypes {
 }
 
 /**
- * The content type of a MockServer request body.
+ * How a MockServer request body is matched.
  */
 export enum MockserverBodyTypes {
+  /**
+   * As JSON, strictly or by only the fields given.
+   */
   JSON = "JSON",
+
+  /**
+   * As form parameters.
+   */
   Form = "PARAMETERS",
+
+  /**
+   * As raw bytes, byte for byte.
+   */
+  Binary = "BINARY",
+
+  /**
+   * As text, whole or as a substring.
+   */
+  String = "STRING",
 }
+
+/**
+ * Matches a JSON request body: all of it with
+ * {@link MockserverMatchTypes.Strict}, or only the fields given with
+ * {@link MockserverMatchTypes.OnlyMatchingFields} (MockServer's default).
+ */
+export type MockserverJsonBody = {
+  type: MockserverBodyTypes.JSON
+  json: Record<string, any>
+  matchType?: MockserverMatchTypes
+}
+
+/**
+ * Matches a form-encoded request body by its parameters.
+ */
+export type MockserverFormBody = {
+  type: MockserverBodyTypes.Form
+  parameters: Record<string, string[]>
+}
+
+/**
+ * Matches a request body byte for byte, e.g. an uploaded file.
+ */
+export type MockserverBinaryBody = {
+  type: MockserverBodyTypes.Binary
+
+  /**
+   * The bytes, base64-encoded, e.g. `buffer.toString("base64")`.
+   */
+  base64Bytes: string
+}
+
+/**
+ * Matches a text request body, whole or, with `subString`, containing it.
+ */
+export type MockserverStringBody = {
+  type: MockserverBodyTypes.String
+  string: string
+  subString?: boolean
+}
+
+/**
+ * Matches a request body, by one of the ways MockServer can.
+ */
+export type MockserverRequestBody =
+  | MockserverJsonBody
+  | MockserverFormBody
+  | MockserverBinaryBody
+  | MockserverStringBody
 
 /**
  * Limits an expectation to a fixed number of matches.
@@ -36,12 +102,7 @@ export type MockserverHttpRequest = {
   method: string
   headers?: Record<string, string[]>
   queryStringParameters?: Record<string, string[]>
-  body?: {
-    type: MockserverBodyTypes
-    json?: Record<string, any>
-    parameters?: Record<string, string[]>
-    matchType?: MockserverMatchTypes
-  }
+  body?: MockserverRequestBody
 }
 
 /**
