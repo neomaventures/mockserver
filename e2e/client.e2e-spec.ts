@@ -368,6 +368,197 @@ describe("MockServerClient", () => {
     })
   })
 
+  describe("retrieveRecordedRequests()", () => {
+    let path: string
+
+    beforeEach(() => {
+      path = `/${faker.word.noun()}`
+    })
+
+    describe("Given a JSON request", () => {
+      const json = { requests: [{ updateCells: { rows: [1, 2] } }] }
+
+      beforeEach(async () => {
+        await request(baseUrl).post(`${path}?page=2`).send(json).expect(404)
+      })
+
+      it("should read back its method, path, query and JSON body", async () => {
+        await expect(
+          client.retrieveRecordedRequests({ path, method: "POST" }),
+        ).resolves.toEqual([
+          expect.objectContaining({
+            method: "POST",
+            path,
+            queryStringParameters: { page: ["2"] },
+            body: {
+              type: "JSON",
+              json,
+              contentType: "application/json",
+              bytes: Buffer.from(JSON.stringify(json)),
+            },
+          }),
+        ])
+      })
+    })
+
+    describe("Given a request with a header", () => {
+      const value = faker.string.uuid()
+
+      beforeEach(async () => {
+        await request(baseUrl).get(path).set("X-Request-Id", value).expect(404)
+      })
+
+      it("should read it back by its lower-cased name", async () => {
+        const [sent] = await client.retrieveRecordedRequests({
+          path,
+          method: "GET",
+        })
+
+        expect(sent?.headers["x-request-id"]).toEqual([value])
+      })
+
+      it("should read it back by its name as sent", async () => {
+        const [sent] = await client.retrieveRecordedRequests({
+          path,
+          method: "GET",
+        })
+
+        expect(sent?.rawHeaders["X-Request-Id"]).toEqual([value])
+      })
+    })
+
+    describe("Given a text request", () => {
+      const text = faker.lorem.sentence()
+
+      beforeEach(async () => {
+        await request(baseUrl)
+          .post(path)
+          .set("Content-Type", "text/plain")
+          .send(text)
+          .expect(404)
+      })
+
+      it("should read back its body as a string", async () => {
+        await expect(
+          client.retrieveRecordedRequests({ path, method: "POST" }),
+        ).resolves.toEqual([
+          expect.objectContaining({
+            body: {
+              type: "STRING",
+              string: text,
+              contentType: "text/plain",
+              bytes: Buffer.from(text),
+            },
+          }),
+        ])
+      })
+    })
+
+    describe("Given a form request", () => {
+      beforeEach(async () => {
+        await request(baseUrl)
+          .post(path)
+          .type("form")
+          .send({ grant_type: "authorization_code", code: "abc" })
+          .expect(404)
+      })
+
+      it("should read back its body as a string", async () => {
+        await expect(
+          client.retrieveRecordedRequests({ path, method: "POST" }),
+        ).resolves.toEqual([
+          expect.objectContaining({
+            body: expect.objectContaining({
+              type: "STRING",
+              string: "grant_type=authorization_code&code=abc",
+            }),
+          }),
+        ])
+      })
+    })
+
+    describe("Given a binary request", () => {
+      const bytes = Buffer.from(
+        faker.helpers.multiple(() => faker.number.int(255), { count: 64 }),
+      )
+
+      beforeEach(async () => {
+        await request(baseUrl)
+          .put(path)
+          .set("Content-Type", "application/octet-stream")
+          .send(bytes)
+          .expect(404)
+      })
+
+      it("should read back its bytes", async () => {
+        await expect(
+          client.retrieveRecordedRequests({ path, method: "PUT" }),
+        ).resolves.toEqual([
+          expect.objectContaining({
+            body: {
+              type: "BINARY",
+              contentType: "application/octet-stream",
+              bytes,
+            },
+          }),
+        ])
+      })
+    })
+
+    describe("Given a request without a body or query", () => {
+      beforeEach(async () => {
+        await request(baseUrl).get(path).expect(404)
+      })
+
+      it("should read it back without a body, and with an empty query", async () => {
+        const [sent] = await client.retrieveRecordedRequests({
+          path,
+          method: "GET",
+        })
+
+        expect(sent).toEqual({
+          method: "GET",
+          path,
+          headers: expect.any(Object),
+          rawHeaders: expect.any(Object),
+          queryStringParameters: {},
+        })
+      })
+    })
+
+    describe("Given several requests", () => {
+      const others = [`/${faker.string.uuid()}`, `/${faker.string.uuid()}`]
+
+      beforeEach(async () => {
+        await request(baseUrl).get(others[0]!).expect(404)
+        await request(baseUrl).get(path).expect(404)
+        await request(baseUrl).get(others[1]!).expect(404)
+      })
+
+      it("should read back only those matching", async () => {
+        await expect(
+          client.retrieveRecordedRequests({ path, method: "GET" }),
+        ).resolves.toEqual([expect.objectContaining({ path })])
+      })
+
+      it("should read back all of them without a matcher, in the order they arrived", async () => {
+        const sent = await client.retrieveRecordedRequests()
+
+        expect(sent.map(({ path }) => path)).toEqual([
+          others[0],
+          path,
+          others[1],
+        ])
+      })
+
+      it("should read back none once reset", async () => {
+        await client.reset()
+
+        await expect(client.retrieveRecordedRequests()).resolves.toEqual([])
+      })
+    })
+  })
+
   describe("verifyExpectationMatched()", () => {
     it("should return true when a request was matched", async () => {
       const path = `/${faker.word.noun()}`

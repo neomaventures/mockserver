@@ -39,6 +39,22 @@ await client.verify({ path: "/api/users", method: "GET" })
 
 `verify` resolves when MockServer received the request exactly once (or `verify(request, 3)`, or `verify(request, { atLeast: 1 })`), and otherwise rejects with a `MockserverVerificationError` whose message is MockServer's explanation: what it expected, and the requests it received. `verifyExpectationMatched` returns the same answer as a boolean.
 
+## Reading what was sent
+
+`retrieveRecordedRequests` reads back the requests MockServer received that match a request, or all of them, in the order they arrived. A spec can then stub leniently and assert what the code sent, with Jest's diff, rather than through a strict matcher that fails with MockServer's `404`:
+
+```typescript
+const [sent] = await client.retrieveRecordedRequests({
+  path: "/api/users",
+  method: "POST",
+})
+
+expect(sent.body).toMatchObject({ type: "JSON", json: { name: "Ada" } })
+expect(sent.headers["content-type"]).toEqual(["application/json"])
+```
+
+Each request has its `method`, `path`, `queryStringParameters` (empty when there were none), `headers` by lower-cased name, `rawHeaders` by name as sent, and its `body` if it had one: `{ type: "JSON", json }`, `{ type: "STRING", string }` (text, and forms) or `{ type: "BINARY" }`, each with its `bytes` as received. A JSON body's `json` is `unknown` unless you say otherwise (`retrieveRecordedRequests<User>(...)`), which the client can't check. `reset()` clears them.
+
 ## How many times an expectation matches
 
 An expectation matches **once** unless its `times` says otherwise:
@@ -193,7 +209,7 @@ them, so two suites against one instance will clear each other's stubs.
 
 ## API
 
-- **`MockServerClient`** — `reset()`, `createExpectation(expectation)`, `createExpectations(expectations)`, `verify(request, times?)`, `verifyExpectationMatched(request, count?)`.
+- **`MockServerClient`** — `reset()`, `createExpectation(expectation)`, `createExpectations(expectations)`, `retrieveRecordedRequests(request?)`, `verify(request, times?)`, `verifyExpectationMatched(request, count?)`.
 - **`MockserverTimes`** (`Once`, `Infinite`) and **`times(count)`** — an expectation's `times`; once by default.
 - **`MockserverVerificationError`** — what `verify` rejects with when a request wasn't received as expected.
 - **`@neomaventures/mockserver/fixture`** — singleton `mockserver` client wired from `MOCKSERVER_URL` with an auto-reset `beforeEach` hook.
