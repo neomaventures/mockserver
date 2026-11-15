@@ -41,6 +41,26 @@ const matched = await client.verifyExpectationMatched({
 })
 ```
 
+## Matching request bodies
+
+`httpRequest.body` takes any of MockServer's body matchers, by `type`:
+
+```typescript
+import { MockserverBodyTypes, MockserverMatchTypes } from "@neomaventures/mockserver"
+
+// JSON: all of it, or only the fields given (MockServer's default)
+body: { type: MockserverBodyTypes.JSON, json: { name: "invoice.pdf" }, matchType: MockserverMatchTypes.Strict }
+
+// Form parameters
+body: { type: MockserverBodyTypes.Form, parameters: { grant_type: ["authorization_code"] } }
+
+// Raw bytes, byte for byte, e.g. an upload
+body: { type: MockserverBodyTypes.Binary, base64Bytes: content.toString("base64") }
+
+// Text, whole or as a substring
+body: { type: MockserverBodyTypes.String, string: "needle", subString: true }
+```
+
 ## Auto-reset fixture
 
 For test suites that want a single shared client and an automatic `reset()` between tests, import the `/fixture` subpath:
