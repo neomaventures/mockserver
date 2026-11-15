@@ -133,11 +133,13 @@ export type MockserverHttpError = {
 
 /**
  * A full MockServer expectation comprising the request to match,
- * the response or error to return, and how many times to match.
+ * the response or error to return, and how many times to match: once,
+ * unless `times` says otherwise (e.g. `MockserverTimes.Infinite` or
+ * `times(3)`).
  */
 export type MockserverExpectation = {
   httpRequest: MockserverHttpRequest
   httpResponse?: MockserverHttpResponse
   httpError?: MockserverHttpError
-  times: MockserverSpecificTimes | MockserverUnlimitedTimes
+  times?: MockserverSpecificTimes | MockserverUnlimitedTimes
 }

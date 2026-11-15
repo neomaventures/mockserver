@@ -5,6 +5,8 @@ import {
   MockserverBodyTypes,
   MockServerClient,
   type MockserverExpectation,
+  MockserverTimes,
+  times,
 } from "@neomaventures/mockserver"
 
 describe("MockServerClient", () => {
@@ -63,19 +65,75 @@ describe("MockServerClient", () => {
       })
     })
 
-    it("should respect specific times", async () => {
-      const path = `/${faker.word.noun()}`
+    describe("Given an expectation without times", () => {
+      let path: string
 
-      const expectation: MockserverExpectation = {
-        httpRequest: { path, method: "GET" },
-        httpResponse: { statusCode: 200, body: "once" },
-        times: { remainingTimes: 1 },
-      }
+      beforeEach(async () => {
+        path = `/${faker.word.noun()}`
 
-      await client.createExpectation(expectation)
+        await client.createExpectation({
+          httpRequest: { path, method: "GET" },
+          httpResponse: { statusCode: 200, body: "once" },
+        })
+      })
 
-      await request(baseUrl).get(path).expect(200)
-      await request(baseUrl).get(path).expect(404)
+      it("should match once", async () => {
+        await request(baseUrl).get(path).expect(200)
+        await request(baseUrl).get(path).expect(404)
+      })
+    })
+
+    describe("Given an expectation whose times is undefined", () => {
+      it("should reject it", async () => {
+        await expect(
+          client.createExpectation({
+            httpRequest: { path: `/${faker.word.noun()}`, method: "GET" },
+            httpResponse: { statusCode: 200, body: "ok" },
+            times: undefined,
+          }),
+        ).rejects.toThrow(TypeError)
+      })
+    })
+
+    describe("Given an expectation matching a number of times", () => {
+      let path: string
+
+      beforeEach(async () => {
+        path = `/${faker.word.noun()}`
+
+        await client.createExpectation({
+          httpRequest: { path, method: "GET" },
+          httpResponse: { statusCode: 200, body: "ok" },
+          times: times(3),
+        })
+      })
+
+      it("should match that many times", async () => {
+        await request(baseUrl).get(path).expect(200)
+        await request(baseUrl).get(path).expect(200)
+        await request(baseUrl).get(path).expect(200)
+        await request(baseUrl).get(path).expect(404)
+      })
+    })
+
+    describe("Given an expectation matching infinitely", () => {
+      let path: string
+
+      beforeEach(async () => {
+        path = `/${faker.word.noun()}`
+
+        await client.createExpectation({
+          httpRequest: { path, method: "GET" },
+          httpResponse: { statusCode: 200, body: "ok" },
+          times: MockserverTimes.Infinite,
+        })
+      })
+
+      it("should match every time", async () => {
+        for (let request_ = 0; request_ < 5; request_++) {
+          await request(baseUrl).get(path).expect(200)
+        }
+      })
     })
   })
 
