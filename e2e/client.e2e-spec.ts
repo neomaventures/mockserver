@@ -325,6 +325,49 @@ describe("MockServerClient", () => {
     })
   })
 
+  describe("createExpectations()", () => {
+    describe("Given several expectations for the same request", () => {
+      let path: string
+
+      beforeEach(async () => {
+        path = `/${faker.word.noun()}`
+
+        await client.createExpectations(
+          ["first", "second"].map((body) => ({
+            httpRequest: { path, method: "GET" },
+            httpResponse: { statusCode: 200, body },
+          })),
+        )
+      })
+
+      it("should answer with each once, in the order given", async () => {
+        await request(baseUrl).get(path).expect(200, "first")
+        await request(baseUrl).get(path).expect(200, "second")
+        await request(baseUrl).get(path).expect(404)
+      })
+    })
+
+    describe("Given an expectation whose times is undefined", () => {
+      it("should reject them all", async () => {
+        await expect(
+          client.createExpectations([
+            {
+              httpRequest: { path: `/${faker.word.noun()}`, method: "GET" },
+              httpResponse: { statusCode: 200, body: "ok" },
+              times: undefined,
+            },
+          ]),
+        ).rejects.toThrow(TypeError)
+      })
+    })
+
+    describe("Given no expectations", () => {
+      it("should register nothing", async () => {
+        await expect(client.createExpectations([])).resolves.toBeUndefined()
+      })
+    })
+  })
+
   describe("verifyExpectationMatched()", () => {
     it("should return true when a request was matched", async () => {
       const path = `/${faker.word.noun()}`
