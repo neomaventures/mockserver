@@ -92,6 +92,65 @@ export class MockServerClient {
   }
 
   /**
+   * Registers several expectations in one request, in the order given,
+   * which is the order MockServer tries them in, e.g. a sequence of answers
+   * to the same request. Each matches once unless its `times` says
+   * otherwise.
+   *
+   * @param expectations - The expectations to register
+   *
+   * @throws {TypeError} When any expectation's `times` is given as
+   *   `undefined`; leave it out to match once
+   * @throws {Error} When the MockServer returns a non-2xx response
+   *
+   * @example
+   * ```typescript
+   * await client.createExpectations([
+   *   {
+   *     httpRequest: { path: "/api/jobs/1", method: "GET" },
+   *     httpResponse: { statusCode: 200, body: '{"status":"running"}' },
+   *   },
+   *   {
+   *     httpRequest: { path: "/api/jobs/1", method: "GET" },
+   *     httpResponse: { statusCode: 200, body: '{"status":"done"}' },
+   *   },
+   * ])
+   * ```
+   */
+  public async createExpectations(
+    expectations: MockserverExpectation[],
+  ): Promise<void> {
+    if (expectations.length === 0) return
+    if (
+      expectations.some(
+        (expectation) =>
+          "times" in expectation && expectation.times === undefined,
+      )
+    ) {
+      throw new TypeError(
+        "An expectation's times can't be undefined: leave it out to match once.",
+      )
+    }
+
+    const response = await fetch(`${this.baseUrl}/expectation`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(
+        expectations.map((expectation) => ({
+          times: MockserverTimes.Once,
+          ...expectation,
+        })),
+      ),
+    })
+
+    if (!response.ok) {
+      throw new Error(
+        `Error creating expectations on ${this.baseUrl}: ${response.status} ${await response.text()}`,
+      )
+    }
+  }
+
+  /**
    * Verifies that MockServer received a request a number of times, failing
    * with MockServer's explanation when it didn't.
    *

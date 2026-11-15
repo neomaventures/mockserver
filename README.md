@@ -92,6 +92,19 @@ await client.createExpectation({
 })
 ```
 
+## Several expectations at once
+
+`createExpectations` registers a list in one request, in order; MockServer tries expectations in the order they were created, so a sequence of answers to the same request reads top to bottom:
+
+```typescript
+await client.createExpectations(
+  pages.map((page) => ({
+    httpRequest: { path: "/api/messages", method: "GET" },
+    httpResponse: { statusCode: 200, body: JSON.stringify(page) },
+  })),
+)
+```
+
 ## Auto-reset fixture
 
 For test suites that want a single shared client and an automatic `reset()` between tests, import the `/fixture` subpath:
@@ -180,7 +193,7 @@ them, so two suites against one instance will clear each other's stubs.
 
 ## API
 
-- **`MockServerClient`** — `reset()`, `createExpectation(expectation)`, `verify(request, times?)`, `verifyExpectationMatched(request, count?)`.
+- **`MockServerClient`** — `reset()`, `createExpectation(expectation)`, `createExpectations(expectations)`, `verify(request, times?)`, `verifyExpectationMatched(request, count?)`.
 - **`MockserverTimes`** (`Once`, `Infinite`) and **`times(count)`** — an expectation's `times`; once by default.
 - **`MockserverVerificationError`** — what `verify` rejects with when a request wasn't received as expected.
 - **`@neomaventures/mockserver/fixture`** — singleton `mockserver` client wired from `MOCKSERVER_URL` with an auto-reset `beforeEach` hook.
