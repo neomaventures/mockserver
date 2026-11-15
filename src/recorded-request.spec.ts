@@ -40,6 +40,40 @@ describe("recordedRequest()", () => {
     })
   })
 
+  describe("Given a bare JSON body, as MockServer returns JSON sent with a charset", () => {
+    const json = { requests: [{ updateCells: { rows: [] } }] }
+
+    it("should read it as JSON, with its content type and bytes", () => {
+      expect(
+        recordedRequest({
+          method: "POST",
+          path: "/",
+          headers: { "Content-Type": ["application/json; charset=UTF-8"] },
+          body: json,
+        }).body,
+      ).toEqual({
+        type: "JSON",
+        json,
+        contentType: "application/json; charset=UTF-8",
+        bytes: Buffer.from(JSON.stringify(json)),
+      })
+    })
+  })
+
+  describe("Given a bare JSON body with a type of its own", () => {
+    const json = { type: "invoice", number: "0042" }
+
+    it("should read it as JSON, not as one of MockServer's typed bodies", () => {
+      expect(
+        recordedRequest({ method: "POST", path: "/", body: json }).body,
+      ).toEqual({
+        type: "JSON",
+        json,
+        bytes: Buffer.from(JSON.stringify(json)),
+      })
+    })
+  })
+
   describe("Given an XML body", () => {
     const xml = "<invoice/>"
 
