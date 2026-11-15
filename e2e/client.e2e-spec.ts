@@ -401,6 +401,33 @@ describe("MockServerClient", () => {
       })
     })
 
+    describe("Given a JSON request sent with a charset", () => {
+      const json = { requests: [{ updateCells: { rows: [1, 2] } }] }
+
+      beforeEach(async () => {
+        await request(baseUrl)
+          .post(path)
+          .set("Content-Type", "application/json; charset=UTF-8")
+          .send(JSON.stringify(json))
+          .expect(404)
+      })
+
+      it("should read back its JSON body", async () => {
+        await expect(
+          client.retrieveRecordedRequests({ path, method: "POST" }),
+        ).resolves.toEqual([
+          expect.objectContaining({
+            body: {
+              type: "JSON",
+              json,
+              contentType: "application/json; charset=UTF-8",
+              bytes: Buffer.from(JSON.stringify(json)),
+            },
+          }),
+        ])
+      })
+    })
+
     describe("Given a request with a header", () => {
       const value = faker.string.uuid()
 
