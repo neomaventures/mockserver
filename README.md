@@ -89,7 +89,6 @@ it("returns the mocked body", async () => {
   await mockserver.createExpectation({
     httpRequest: { path: "/api/users", method: "GET" },
     httpResponse: { statusCode: 200, body: "[]" },
-    times: MockserverTimes.Infinite,
   })
 
   // ...exercise the code under test...
