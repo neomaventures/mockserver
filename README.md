@@ -30,7 +30,6 @@ await client.reset()
 await client.createExpectation({
   httpRequest: { path: "/api/users", method: "GET" },
   httpResponse: { statusCode: 200, body: "[]" },
-  times: { unlimited: true },
 })
 
 // ...exercise the code under test, which calls the mocked endpoint...
@@ -40,6 +39,24 @@ const matched = await client.verifyExpectationMatched({
   method: "GET",
 })
 ```
+
+## How many times an expectation matches
+
+An expectation matches **once** unless its `times` says otherwise:
+
+```typescript
+import { MockserverTimes, times } from "@neomaventures/mockserver"
+
+await client.createExpectation({ httpRequest, httpResponse }) // once
+await client.createExpectation({ httpRequest, httpResponse, times: times(3) }) // three times
+await client.createExpectation({
+  httpRequest,
+  httpResponse,
+  times: MockserverTimes.Infinite,
+}) // every time
+```
+
+MockServer's own default, when `times` is left out of the request, is every time; the client sends once instead.
 
 ## Matching request bodies
 
@@ -72,7 +89,7 @@ it("returns the mocked body", async () => {
   await mockserver.createExpectation({
     httpRequest: { path: "/api/users", method: "GET" },
     httpResponse: { statusCode: 200, body: "[]" },
-    times: { unlimited: true },
+    times: MockserverTimes.Infinite,
   })
 
   // ...exercise the code under test...
@@ -151,6 +168,7 @@ them, so two suites against one instance will clear each other's stubs.
 ## API
 
 - **`MockServerClient`** — `reset()`, `createExpectation(expectation)`, `verifyExpectationMatched(request, count?)`.
+- **`MockserverTimes`** (`Once`, `Infinite`) and **`times(count)`** — an expectation's `times`; once by default.
 - **`@neomaventures/mockserver/fixture`** — singleton `mockserver` client wired from `MOCKSERVER_URL` with an auto-reset `beforeEach` hook.
 
 ## License

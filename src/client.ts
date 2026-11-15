@@ -1,3 +1,4 @@
+import { MockserverTimes } from "./times"
 import { type MockserverExpectation, type MockserverHttpRequest } from "./types"
 
 /**
@@ -13,7 +14,7 @@ import { type MockserverExpectation, type MockserverHttpRequest } from "./types"
  * await client.createExpectation({
  *   httpRequest: { path: "/api/users", method: "GET" },
  *   httpResponse: { statusCode: 200, body: "[]" },
- *   times: { unlimited: true },
+ *   times: MockserverTimes.Infinite,
  * })
  * const matched = await client.verifyExpectationMatched(
  *   { path: "/api/users", method: "GET" },
@@ -49,10 +50,13 @@ export class MockServerClient {
 
   /**
    * Registers an expectation (a request to match and a response to return)
-   * on the MockServer instance.
+   * on the MockServer instance. It matches once unless its `times` says
+   * otherwise.
    *
    * @param expectation - The expectation to register
    *
+   * @throws {TypeError} When `times` is given as `undefined`; leave it out
+   *   to match once
    * @throws {Error} When the MockServer returns a non-2xx response
    *
    * @example
@@ -60,17 +64,23 @@ export class MockServerClient {
    * await client.createExpectation({
    *   httpRequest: { path: "/api/users", method: "GET" },
    *   httpResponse: { statusCode: 200, body: "[]" },
-   *   times: { unlimited: true },
+   *   times: MockserverTimes.Infinite,
    * })
    * ```
    */
   public async createExpectation(
     expectation: MockserverExpectation,
   ): Promise<void> {
+    if ("times" in expectation && expectation.times === undefined) {
+      throw new TypeError(
+        "An expectation's times can't be undefined: leave it out to match once.",
+      )
+    }
+
     const response = await fetch(`${this.baseUrl}/expectation`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(expectation),
+      body: JSON.stringify({ times: MockserverTimes.Once, ...expectation }),
     })
 
     if (!response.ok) {

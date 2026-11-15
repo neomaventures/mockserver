@@ -39,7 +39,7 @@ if (!url) {
  *   await mockserver.createExpectation({
  *     httpRequest: { path: "/api/users", method: "GET" },
  *     httpResponse: { statusCode: 200, body: "[]" },
- *     times: { unlimited: true },
+ *     times: MockserverTimes.Infinite,
  *   })
  *
  *   // ...exercise the code under test...
