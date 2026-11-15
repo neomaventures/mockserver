@@ -1,3 +1,4 @@
+import { MockserverVerificationError } from "./errors"
 import { MockserverTimes } from "./times"
 import { type MockserverExpectation, type MockserverHttpRequest } from "./types"
 
@@ -88,6 +89,51 @@ export class MockServerClient {
         `Error creating expectation on ${this.baseUrl}: ${response.status} ${await response.text()}`,
       )
     }
+  }
+
+  /**
+   * Verifies that MockServer received a request a number of times, failing
+   * with MockServer's explanation when it didn't.
+   *
+   * @param httpRequest - The request to look for
+   * @param times - Exactly how many times it should have been received, or
+   *   at least and at most how many. Defaults to exactly `1`.
+   *
+   * @throws {MockserverVerificationError} When the request wasn't received
+   *   that many times; its message says what MockServer expected and the
+   *   requests it received
+   * @throws {Error} When the MockServer returns any other non-2xx response
+   *
+   * @example
+   * ```typescript
+   * await client.verify({ path: "/api/users", method: "GET" }, 2)
+   * await client.verify({ path: "/api/users", method: "GET" }, { atLeast: 1 })
+   * ```
+   */
+  public async verify(
+    httpRequest: MockserverHttpRequest,
+    times: number | { atLeast?: number; atMost?: number } = 1,
+  ): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/verify`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        httpRequest,
+        times:
+          typeof times === "number" ? { atLeast: times, atMost: times } : times,
+      }),
+    })
+
+    if (response.ok) return
+
+    const explanation = await response.text()
+    if (response.status === 406) {
+      throw new MockserverVerificationError(explanation)
+    }
+
+    throw new Error(
+      `Error verifying expectation on ${this.baseUrl}: ${response.status} ${explanation}`,
+    )
   }
 
   /**
